@@ -1,0 +1,15 @@
+# Normalize text files to LF in the repo; Git checks out with the OS native
+# line ending on Windows (CRLF) by default. This keeps diffs clean across
+# platforms and silences the "LF will be replaced by CRLF" noise.
+* text=auto eol=lf
+
+# Binary files — never normalize.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.gz binary
