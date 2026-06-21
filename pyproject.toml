@@ -1,0 +1,63 @@
+[project]
+name = "personal-assistant"
+version = "0.1.0"
+description = "A personal assistant agent enabling phone–PC collaboration with a continuously extensible plugin architecture."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [{ name = "Python-Assistant" }]
+keywords = ["assistant", "agent", "phone-pc", "automation", "plugins"]
+# 运行时依赖暂留空：当前仅初始化骨架，不实现具体功能。
+dependencies = []
+
+[project.scripts]
+# 安装后提供 `personal-assistant` 命令入口（当前为占位）。
+personal-assistant = "personal_assistant.__main__:main"
+
+[project.urls]
+Documentation = "https://github.com/your-org/Python-Assistant#readme"
+Source = "https://github.com/your-org/Python-Assistant"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.uv]
+# 默认使用清华镜像加速依赖下载（国内网络环境更稳定）。
+index-url = "https://pypi.tuna.tsinghua.edu.cn/simple"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/personal_assistant"]
+
+# ---- pytest ----
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+pythonpath = ["src"]
+addopts = "-ra -q"
+
+# ---- ruff（lint + format，uv 自带，零额外依赖）----
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+]
+ignore = ["E501"]  # 行长由 formatter 负责
+
+[tool.ruff.lint.isort]
+known-first-party = ["personal_assistant"]
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+    "ruff>=0.15.18",
+]
