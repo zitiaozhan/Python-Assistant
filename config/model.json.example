@@ -1,0 +1,10 @@
+{
+  "_comment": "复制本文件为 model.json 并填入真实 api_key；model.json 已被 .gitignore 忽略。也可不在此填 key，改用环境变量 DEEPSEEK_API_KEY（环境变量优先级更高）。",
+  "base_url": "https://api.deepseek.com",
+  "api_key": "sk-your-api-key-here",
+  "model": "deepseek-v4-flash",
+  "system_prompt": "你是一个乐于助人的个人助理，回答简洁、准确。",
+  "temperature": 0.7,
+  "max_tokens": 2048,
+  "stream": true
+}

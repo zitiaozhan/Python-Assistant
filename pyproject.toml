@@ -8,7 +8,9 @@ license = { text = "MIT" }
 authors = [{ name = "Python-Assistant" }]
 keywords = ["assistant", "agent", "phone-pc", "automation", "plugins"]
 # 运行时依赖暂留空：当前仅初始化骨架，不实现具体功能。
-dependencies = []
+dependencies = [
+    "openai>=2.43.0",
+]
 
 [project.scripts]
 # 安装后提供 `personal-assistant` 命令入口（当前为占位）。

@@ -41,6 +41,4 @@ class Agent:
         Note:
             Not yet implemented. Concrete subclasses will provide behavior.
         """
-        raise NotImplementedError(
-            f"{type(self).__name__}.handle() is not implemented yet."
-        )
+        raise NotImplementedError(f"{type(self).__name__}.handle() is not implemented yet.")

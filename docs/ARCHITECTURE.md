@@ -1,8 +1,7 @@
 # Architecture
 
-> Status: **skeleton only**. This document describes the intended design so
-> that future work has a clear target. No concrete functionality is
-> implemented yet.
+> Status: **CLI 对话已可用**（`cli.py` + `llm/`）。本文件描述整体设计与后续目标。
+> 手机↔电脑协作、插件机制尚未实现。
 
 ## Goals
 
@@ -67,7 +66,8 @@ agent can delegate across the link.
 ## Milestones (indicative)
 
 1. ✅ Project skeleton, build/test tooling.
-2. ⬜ Plugin registry + intent dispatch.
-3. ⬜ First built-in capability (e.g. clipboard sync).
-4. ⬜ Phone–PC transport and pairing.
-5. ⬜ LLM-backed intent understanding.
+2. ✅ CLI chat REPL with streaming output + configurable model (DeepSeek via OpenAI-compatible API).
+3. ⬜ Plugin registry + intent dispatch.
+4. ⬜ First built-in capability (e.g. clipboard sync).
+5. ⬜ Phone–PC transport and pairing.
+6. ⬜ LLM-backed tool-calling / agent decision-making.

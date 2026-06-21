@@ -78,3 +78,7 @@ logs/
 .env.*
 !.env.example
 secrets/
+
+# 真实模型配置含 API key，仅提交 *.example 模板
+config/model.json
+config/*.local.json
