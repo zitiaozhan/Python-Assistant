@@ -10,6 +10,7 @@ keywords = ["assistant", "agent", "phone-pc", "automation", "plugins"]
 # 运行时依赖暂留空：当前仅初始化骨架，不实现具体功能。
 dependencies = [
     "openai>=2.43.0",
+    "ddgs>=9.0.0",
 ]
 
 [project.scripts]
