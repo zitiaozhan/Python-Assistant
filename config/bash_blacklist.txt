@@ -1,0 +1,29 @@
+# Bash 命令黑名单 —— 匹配以下模式的命令需要用户确认
+# 每行一个正则表达式（大小写不敏感），# 开头为注释，空行忽略
+# 修改此文件后重启程序生效。
+
+# 文件/目录删除
+\brm\b
+\brmdir\b
+\bdel\b
+\berase\b
+\bunlink\b
+
+# 磁盘/分区操作
+\bdd\b
+\bformat\b
+\bmkfs\b
+\bfdisk\b
+\bparted\b
+
+# 系统电源
+\bshutdown\b
+\breboot\b
+\bpoweroff\b
+\bhalt\b
+
+# 文件粉碎
+\bshred\b
+
+# 危险重定向（覆盖设备文件）
+of=/dev/

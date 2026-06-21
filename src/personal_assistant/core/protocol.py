@@ -74,11 +74,51 @@ class Message:
 
 
 @dataclass
+class TokenUsage:
+    """单次 API 调用的 token 消耗统计。
+
+    支持累加（``+`` 运算符），便于在一轮对话中汇总多次模型调用的总消耗。
+    """
+
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
+    total_tokens: int = 0
+    #: 命中 prompt 缓存的 token 数（减少计费 / 加速响应）。
+    cached_tokens: int = 0
+    #: 推理 token 数（部分模型如 DeepSeek-R1 会产生）。
+    reasoning_tokens: int = 0
+
+    def __add__(self, other: TokenUsage) -> TokenUsage:
+        return TokenUsage(
+            prompt_tokens=self.prompt_tokens + other.prompt_tokens,
+            completion_tokens=self.completion_tokens + other.completion_tokens,
+            total_tokens=self.total_tokens + other.total_tokens,
+            cached_tokens=self.cached_tokens + other.cached_tokens,
+            reasoning_tokens=self.reasoning_tokens + other.reasoning_tokens,
+        )
+
+    def format(self) -> str:
+        """返回人类可读的统计摘要。"""
+        parts = [
+            f"输入 {self.prompt_tokens}",
+            f"输出 {self.completion_tokens}",
+            f"总计 {self.total_tokens}",
+        ]
+        if self.cached_tokens:
+            parts.append(f"缓存命中 {self.cached_tokens}")
+        if self.reasoning_tokens:
+            parts.append(f"推理 {self.reasoning_tokens}")
+        return " | ".join(parts)
+
+
+@dataclass
 class LLMResponse:
     """LLMClient.complete 的返回：要么是最终文本回复，要么是工具调用请求。"""
 
     content: str = ""
     tool_calls: list[ToolCall] = field(default_factory=list)
+    #: 本次调用的 token 消耗（由 LLMClient 从 API 响应中提取）。
+    usage: TokenUsage | None = None
 
     @property
     def has_tool_calls(self) -> bool:

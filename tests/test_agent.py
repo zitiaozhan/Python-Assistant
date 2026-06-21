@@ -109,3 +109,124 @@ def test_agent_respects_confirm_reject() -> None:
     agent = Agent(llm, tools=[tool], confirm=lambda name, args, preview: False)
     agent.run([Message.user("hi")])
     assert tool.calls == []  # 被拒绝，未执行
+
+
+# --------------------------------------------------------------------------- #
+# 系统提示词变量处理
+# --------------------------------------------------------------------------- #
+
+
+def test_process_system_prompt_appends_variables() -> None:
+    """{{变量}} 占位符不被替换，解析值追加到末尾。"""
+    agent = Agent(_MockLLM([LLMResponse(content="ok")]), system_prompt="")
+    processed = agent._process_system_prompt("当前时间：{{current_time}}，用户：{{user_name}}")
+
+    # 原文占位符保留
+    assert "{{current_time}}" in processed
+    assert "{{user_name}}" in processed
+    # 变量值追加在末尾
+    assert "---variables---" in processed
+    assert "current_time:" in processed
+    # user_name 无解析器，不应出现
+    assert "user_name:" not in processed
+
+
+def test_process_system_prompt_no_variables() -> None:
+    """无变量的提示词原样返回。"""
+    agent = Agent(_MockLLM([LLMResponse(content="ok")]), system_prompt="")
+    prompt = "你是一个个人助理。"
+    processed = agent._process_system_prompt(prompt)
+    assert processed == prompt
+
+
+def test_process_system_prompt_default_resolvers() -> None:
+    """内置变量 current_time / current_date / os 可正常解析。"""
+    from datetime import datetime
+
+    agent = Agent(_MockLLM([LLMResponse(content="ok")]), system_prompt="")
+    processed = agent._process_system_prompt("{{current_time}} {{current_date}} {{os}}")
+
+    today = datetime.now().strftime("%Y-%m-%d")
+    assert f"current_date: {today}" in processed
+    assert "current_time:" in processed
+    assert "os:" in processed
+    # 原文占位符保留
+    assert "{{current_time}}" in processed
+
+
+def test_register_custom_var() -> None:
+    """register_var 注册的自定义变量可被解析。"""
+    agent = Agent(_MockLLM([LLMResponse(content="ok")]), system_prompt="")
+    agent.register_var("user_name", lambda: "张三")
+    processed = agent._process_system_prompt("你好，{{user_name}}")
+
+    assert "{{user_name}}" in processed  # 原文保留
+    assert "user_name: 张三" in processed  # 值追加在末尾
+
+
+def test_var_resolvers_init_param() -> None:
+    """通过 __init__ 的 var_resolvers 参数传入自定义解析器。"""
+    agent = Agent(
+        _MockLLM([LLMResponse(content="ok")]),
+        var_resolvers={"city": lambda: "北京"},
+    )
+    processed = agent._process_system_prompt("所在地：{{city}}")
+    assert "city: 北京" in processed
+
+
+def test_run_processes_system_prompt() -> None:
+    """run() 调用时自动处理系统消息中的变量。"""
+    llm = _MockLLM([LLMResponse(content="done")])
+    agent = Agent(llm, system_prompt="时间：{{current_time}}")
+    messages = [Message.system("时间：{{current_time}}"), Message.user("hi")]
+    agent.run(messages)
+
+    # 发给模型的消息中，系统提示词已包含变量值
+    sent_system = llm.completions[0][0]
+    assert sent_system.role == "system"
+    assert "{{current_time}}" in (sent_system.content or "")  # 原文保留
+    assert "current_time:" in (sent_system.content or "")  # 值已追加
+
+
+def test_run_does_not_accumulate_variables() -> None:
+    """多次 run() 不会累积变量值（分隔符剥离旧值）。"""
+    call_count = 0
+
+    class _CountingLLM:
+        def complete(self, messages, tools=None):
+            nonlocal call_count
+            call_count += 1
+            return LLMResponse(content=f"reply {call_count}")
+
+    agent = Agent(_CountingLLM(), system_prompt="{{current_time}}")
+
+    messages1 = [Message.system("{{current_time}}"), Message.user("first")]
+    agent.run(messages1)
+    first_content = messages1[0].content or ""
+    # 只应有一处 ---variables---
+    assert first_content.count("---variables---") == 1
+
+    # 第二轮：系统消息已包含上轮追加的值
+    messages2 = [messages1[0], Message.user("second")]
+    agent.run(messages2)
+    second_content = messages2[0].content or ""
+    # 仍然只有一处 ---variables---（旧值被剥离后重新追加）
+    assert second_content.count("---variables---") == 1
+
+
+def test_process_system_prompt_deduplicates() -> None:
+    """同一变量出现多次时只解析一次。"""
+    agent = Agent(_MockLLM([LLMResponse(content="ok")]), system_prompt="")
+    processed = agent._process_system_prompt("{{current_time}} and {{current_time}}")
+    # 变量值只出现一次
+    lines_with_time = [line for line in processed.split("\n") if line.startswith("current_time:")]
+    assert len(lines_with_time) == 1
+
+
+def test_process_system_prompt_unknown_var_ignored() -> None:
+    """未注册的变量不会出现在追加区域。"""
+    agent = Agent(_MockLLM([LLMResponse(content="ok")]), system_prompt="")
+    processed = agent._process_system_prompt("{{unknown_var}}")
+    # 无变量值可追加，返回 base prompt
+    assert "---variables---" not in processed
+    assert "{{unknown_var}}" in processed

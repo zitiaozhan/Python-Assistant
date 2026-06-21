@@ -3,6 +3,12 @@
 执行环境为 Windows 上的 Git Bash（``bash -c "<command>"``）。``~`` 会展开为
 用户主目录，故 ``~/Desktop/test.txt`` 即用户桌面。强制 UTF-8 环境变量，确保
 中文读写不乱码。
+
+bash 发现顺序：
+1. ``PATH`` 上的 ``bash``（``shutil.which``）；
+2. 从 ``PATH`` 上的 ``git`` 推导（``<git_dir>/bin/bash.exe``）；
+3. 常见安装路径扫描；
+4. 退化为系统默认 shell（仅作兜底）。
 """
 
 from __future__ import annotations
@@ -15,6 +21,39 @@ from typing import Any
 from personal_assistant.core.tool import Tool
 
 _DEFAULT_TIMEOUT = 60
+# Windows 上 Git Bash 的常见安装路径。
+_GIT_BASH_CANDIDATES = [
+    r"C:\Program Files\Git\bin\bash.exe",
+    r"C:\Program Files (x86)\Git\bin\bash.exe",
+    r"D:\Software\Git\bin\bash.exe",
+]
+
+
+def _find_bash() -> str | None:
+    """按优先级查找 bash 可执行文件路径。
+
+    1. PATH 上的 bash；
+    2. 从 git 位置推导（git.exe 同级的 bin/bash.exe）；
+    3. 常见安装路径。
+    """
+    bash = shutil.which("bash")
+    if bash:
+        return bash
+
+    # 从 git 推导：git 通常在 <git_root>/cmd/git.exe，bash 在 <git_root>/bin/bash.exe
+    git = shutil.which("git")
+    if git:
+        git_root = os.path.dirname(os.path.dirname(git))
+        derived = os.path.join(git_root, "bin", "bash.exe")
+        if os.path.isfile(derived):
+            return derived
+
+    # 扫描常见路径
+    for candidate in _GIT_BASH_CANDIDATES:
+        if os.path.isfile(candidate):
+            return candidate
+
+    return None
 
 
 class BashTool(Tool):
@@ -40,7 +79,7 @@ class BashTool(Tool):
     def __init__(self, *, cwd: str | None = None, timeout: int = _DEFAULT_TIMEOUT) -> None:
         self.cwd = cwd or os.path.expanduser("~")
         self.timeout = timeout
-        self._bash = shutil.which("bash")
+        self._bash = _find_bash()
 
     def run(self, arguments: dict[str, Any]) -> str:
         command = arguments.get("command")
