@@ -3,8 +3,8 @@
 一个面向**个人助理**的 Agent 项目，目标是打通**手机与电脑的协作**，并通过
 **插件化架构**实现可持续扩展的能力体系。
 
-> 当前状态：已实现 **CLI 对话主程序**（多轮对话、流式输出、模型可配置化）。
-> 手机↔电脑协作与插件机制为后续路线图。
+> 当前状态：已实现 **Agent 工具调用能力**（toolcall 协议、Bash 工具、CLI 自主编排）。
+> Agent 能自主决定是否调用工具并在本地真实执行。手机↔电脑协作为后续路线图。
 
 ---
 
@@ -21,16 +21,17 @@
 ```
 Python-Assistant/
 ├── src/personal_assistant/
-│   ├── core/          # Agent 基类、Capability/Plugin 等核心抽象（占位）
+│   ├── core/          # 核心抽象：Agent（工具编排）、Tool 基类、protocol（解耦协议）
 │   ├── llm/           # LLM 客户端封装（OpenAI 兼容协议接入 DeepSeek）
-│   ├── cli.py         # 命令行 REPL 主程序（多轮对话 + 流式输出）
+│   ├── tools/         # 工具集合（bash.py + 如何新增工具的 README）
+│   ├── cli.py         # 命令行 REPL 主程序（Agent 编排 + 工具确认门禁）
 │   ├── config.py      # 加载 model.json 配置，支持环境变量覆盖
-│   ├── plugins/       # 内置能力插件（预留命名空间）
+│   ├── plugins/       # （旧）能力插件命名空间，预留
 │   └── sync/          # 手机↔电脑协作层：传输、配对、共享状态（预留）
 ├── config/
 │   ├── model.json         # 真实配置（含 API key，已被 .gitignore 忽略）
 │   └── model.json.example # 配置模板（提交到版本库）
-├── tests/             # 冒烟测试，守护骨架不被破坏
+├── tests/             # 单元测试 + Agent 编排测试 + 真实 LLM 验收测试
 ├── docs/
 │   └── ARCHITECTURE.md   # 架构与扩展机制说明
 ├── pyproject.toml     # 项目元信息、依赖、工具配置
@@ -107,6 +108,21 @@ uv run ruff format .
 | `/clear` | 清空当前对话历史 |
 | `/help` | 显示帮助 |
 
+### 工具能力（toolcall）
+
+Agent 采用 **toolcall 协议** 自主使用工具：
+
+- 启动时把工具列表（名称 + 描述 + 参数 JSON Schema）随消息发给模型；
+- 模型自行决定**是否**调用、调用**哪个**工具、传什么参数；
+- Agent 在本地真实执行工具，把结果回填给模型，进入下一轮，直到模型给出最终回复。
+
+内置工具：**bash**（在 Git Bash 中执行命令，`~` 展开为用户主目录）。
+
+每次工具执行前，CLI 会弹出确认提示（`允许执行？[Y/n]`），避免误操作。
+
+> 想新增工具？参考 [`src/personal_assistant/tools/README.md`](src/personal_assistant/tools/README.md)，
+> 只需继承 `Tool` 实现 4 个字段，无需关心模型协议（已解耦）。
+
 ## 如何扩展（预告）
 
 本项目采用「插件优先」的扩展方式，而非修改核心代码：
@@ -122,10 +138,11 @@ uv run ruff format .
 
 - [x] 项目骨架与工具链
 - [x] CLI 对话主程序（多轮对话、流式输出、模型可配置化）
+- [x] Agent 工具调用能力（toolcall 协议、Bash 工具、自主编排）
+- [ ] 更多内置工具（文件、搜索、剪贴板等）
 - [ ] 插件注册表与意图分发
-- [ ] 第一个内置能力（如剪贴板同步）
 - [ ] 手机↔电脑传输层与配对
-- [ ] 基于 LLM 的工具调用 / Agent 决策
+- [ ] 基于 LLM 的多步任务规划
 
 ## License
 

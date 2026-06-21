@@ -1,13 +1,10 @@
 """命令行交互主程序（REPL）。
 
-在一个循环中：
-1. 从命令行读取用户输入；
-2. 将输入交给 :class:`~personal_assistant.llm.client.LLMClient`；
-3. 把模型输出流式打印到命令行；
-4. 维护多轮对话上下文。
+启动一个带工具能力的 Agent：在循环中读取用户输入 → 交给 Agent 编排
+（Agent 自主决定是否调用工具）→ 打印最终回复与中间过程。
 
-支持的命令（以 ``/`` 开头）：
-- ``/exit`` 或 ``/quit``：退出
+支持的斜杠命令：
+- ``/exit`` / ``/quit``：退出
 - ``/clear``：清空当前对话历史
 - ``/help``：显示帮助
 """
@@ -17,17 +14,38 @@ from __future__ import annotations
 import sys
 
 from personal_assistant.config import ConfigError, load_config
+from personal_assistant.core.agent import Agent
+from personal_assistant.core.protocol import Message
 from personal_assistant.llm.client import LLMClient
+from personal_assistant.tools import default_tools
 
-_BANNER = "Personal Assistant 已就绪。输入消息开始对话，输入 /help 查看命令，/exit 退出。"
+_BANNER = (
+    "Personal Assistant 已就绪。直接输入消息即可；"
+    "Agent 会自主决定是否调用工具。输入 /help 查看命令，/exit 退出。"
+)
 _HELP = """可用命令：
   /exit, /quit   退出程序
   /clear         清空当前对话历史
   /help          显示本帮助
-其余输入将作为消息发送给模型。"""
-# 退出/错误码
+其余输入将作为消息发送给 Agent（可能触发工具调用）。"""
 _EXIT_OK = 0
 _EXIT_CONFIG_ERROR = 2
+
+
+def _confirm_tool(name: str, arguments: dict, preview: str) -> bool:
+    """工具执行前的确认提示。"""
+    print(f"\n[工具调用] {name}: {preview}")
+    try:
+        ans = input("  允许执行？[Y/n] ").strip().lower()
+    except (EOFError, KeyboardInterrupt):
+        return False
+    return ans in ("", "y", "yes")
+
+
+def _on_event(event: str, data: dict) -> None:
+    """展示 Agent 的中间过程（工具调用结果）。"""
+    if event == "tool_result":
+        print(f"  [结果] {data['name']}: {data['output']}")
 
 
 def run() -> int:
@@ -39,20 +57,25 @@ def run() -> int:
         return _EXIT_CONFIG_ERROR
 
     llm = LLMClient(config)
-    # 多轮对话历史：首条固定为 system prompt。
-    history: list[dict[str, str]] = [{"role": "system", "content": config.system_prompt}]
+    agent = Agent(
+        llm,
+        tools=default_tools(),
+        system_prompt=config.system_prompt,
+        confirm=_confirm_tool,
+        on_event=_on_event,
+    )
 
     print(_BANNER)
-    print(f"[模型] {config.model} @ {config.base_url}\n")
+    print(f"[模型] {config.model} @ {config.base_url}")
+    print(f"[工具] {', '.join(t.name for t in agent.tools.values())}\n")
 
+    history: list[Message] = [Message.system(config.system_prompt)]
     while True:
         try:
             user_input = input("你 > ").strip()
         except (EOFError, KeyboardInterrupt):
-            # Ctrl+D / Ctrl+C 视为退出。
             print("\n再见。")
             return _EXIT_OK
-
         if not user_input:
             continue
 
@@ -61,33 +84,22 @@ def run() -> int:
             print("再见。")
             return _EXIT_OK
         if cmd == "/clear":
-            history = [{"role": "system", "content": config.system_prompt}]
+            history = [Message.system(config.system_prompt)]
             print("[已清空对话历史]\n")
             continue
         if cmd == "/help":
             print(_HELP, "\n")
             continue
 
-        history.append({"role": "user", "content": user_input})
+        history.append(Message.user(user_input))
         print("助理 > ", end="", flush=True)
         try:
-            assistant_text = _stream_print(llm, history)
+            reply = agent.run(history)
         except Exception as exc:  # noqa: BLE001 - 顶层兜底，保证 REPL 不崩
-            print(f"\n[请求失败] {exc}\n", file=sys.stderr)
-            # 失败时回滚刚加入的 user 消息，保持历史一致。
+            print(f"\n[Agent 失败] {exc}\n", file=sys.stderr)
             history.pop()
             continue
-        history.append({"role": "assistant", "content": assistant_text})
-        print()  # 换行分隔下一轮
-
-
-def _stream_print(llm: LLMClient, history: list[dict[str, str]]) -> str:
-    """流式打印模型输出，并返回完整文本。"""
-    chunks: list[str] = []
-    for delta in llm.chat(history):
-        print(delta, end="", flush=True)
-        chunks.append(delta)
-    return "".join(chunks)
+        print(reply, "\n")
 
 
 def main() -> int:
@@ -95,6 +107,5 @@ def main() -> int:
     return run()
 
 
-# 便于 ``python -m personal_assistant`` 直接启动。
 if __name__ == "__main__":
     sys.exit(run())

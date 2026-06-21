@@ -1,7 +1,7 @@
 # Architecture
 
-> Status: **CLI 对话已可用**（`cli.py` + `llm/`）。本文件描述整体设计与后续目标。
-> 手机↔电脑协作、插件机制尚未实现。
+> Status: **Agent + tool calling 已可用**。Agent 通过与模型解耦的 toolcall 协议
+> 自主调用工具（首个工具：bash）。手机↔电脑协作、插件自动发现为后续路线图。
 
 ## Goals
 
@@ -33,24 +33,46 @@
 
 ## Core abstractions
 
-- **`Agent`** (`core/agent.py`) — the coordinator. Receives an intent,
-  decides which capability handles it, and returns a result. Today it is
-  an abstract shell; orchestration logic is a future milestone.
-- **`Capability`** (`core/plugin.py`) — a single unit of functionality.
-  Declares `can_handle(intent)` and `run(intent, context)`.
-- **`Plugin`** (`core/plugin.py`) — a bundle of related capabilities; the
-  recommended unit of distribution.
+- **`Agent`** (`core/agent.py`) — the coordinator. Drives the toolcall loop:
+  sends messages + tool specs to the model, executes any requested tools,
+  feeds results back, and loops until the model gives a final text reply.
+  Includes a `confirm` gate (per tool call) and `on_event` hook for UI.
+- **`Tool`** (`core/tool.py`) — base class for all tools. Subclasses declare
+  `name` / `description` / `parameters` (JSON Schema) and implement `run`.
+  See `tools/README.md` for how to add one.
+- **Protocol** (`core/protocol.py`) — the model-agnostic contract between
+  Agent and `LLMClient`: `ToolSpec`, `ToolCall`, `ToolResult`, `Message`,
+  `LLMResponse`. **This is the decoupling boundary** — Agent never sees the
+  model's wire format.
+- **`Capability` / `Plugin`** (`core/plugin.py`) — an earlier, coarser
+  capability abstraction, reserved for future higher-level composition.
 
-## How to extend
+## Decoupling: Agent ↔ model
 
-Prefer adding a **plugin** over editing core code:
+```
+Agent (core/agent.py)
+   │  operates only on protocol types (Message / ToolSpec / ToolCall ...)
+   ▼
+LLMClient (llm/client.py)        ←── translates to/from the model's wire format
+   │  (OpenAI-compatible: tools=[], tool_calls=[], role="tool" ...)
+   ▼
+DeepSeek / OpenAI / any compatible provider
+```
 
-1. Create a `Capability` subclass implementing `can_handle` and `run`.
-2. Group related capabilities into a `Plugin`.
-3. Register the plugin with the `Agent` at startup.
+Switching providers: change `config/model.json` (`base_url`/`model`) and,
+only if the wire protocol differs, adjust the translators in `LLMClient`.
+Agent and tools stay untouched.
 
-The plugin-discovery mechanism (entry points / directory scanning) will be
-implemented in a later milestone.
+## How to extend (tools)
+
+Prefer adding a **tool** over editing core code:
+
+1. Subclass `Tool`, fill in `name` / `description` / `parameters`, implement `run`.
+2. Register it in `tools/__init__.default_tools()`.
+3. The model will discover and call it automatically via toolcall.
+
+See [`src/personal_assistant/tools/README.md`](../src/personal_assistant/tools/README.md)
+for a worked example (bash).
 
 ## Phone–PC collaboration
 
@@ -67,7 +89,8 @@ agent can delegate across the link.
 
 1. ✅ Project skeleton, build/test tooling.
 2. ✅ CLI chat REPL with streaming output + configurable model (DeepSeek via OpenAI-compatible API).
-3. ⬜ Plugin registry + intent dispatch.
-4. ⬜ First built-in capability (e.g. clipboard sync).
-5. ⬜ Phone–PC transport and pairing.
-6. ⬜ LLM-backed tool-calling / agent decision-making.
+3. ✅ Agent tool-calling: decoupled protocol + orchestration loop + bash tool.
+4. ⬜ More built-in tools (files, search, clipboard).
+5. ⬜ Plugin/tool auto-discovery (entry points / directory scanning).
+6. ⬜ Phone–PC transport and pairing.
+7. ⬜ Multi-step task planning on top of tool calling.
