@@ -119,6 +119,16 @@ def _confirm_tool(name: str, arguments: dict, preview: str) -> bool:
 
 def _on_event(event: str, data: dict) -> None:
     """展示 Agent 的中间过程：仅显示使用的工具/技能名称，不展示输入输出。"""
+    if event == "context_compressed":
+        _before_tool_output()
+        count = data.get("compression_count", 0)
+        old_msgs = data.get("old_messages", 0)
+        new_msgs = data.get("new_messages", 0)
+        summary = data.get("summary", "")
+        print(f"  [上下文压缩] 第 {count} 次压缩：{old_msgs} 条 → {new_msgs} 条")
+        if summary:
+            print(f"  [摘要] {summary}...")
+        return
     if event != "tool_call":
         return
     name = data["name"]
@@ -158,6 +168,8 @@ def run() -> int:
         confirm=_confirm_tool,
         on_event=_on_event,
         skills=default_skill_manager(),
+        max_messages=50,  # 上下文压缩：最大消息数
+        auto_compress=True,  # 启用自动上下文压缩
     )
 
     print(_BANNER)

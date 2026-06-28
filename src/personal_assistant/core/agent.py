@@ -73,6 +73,8 @@ class Agent:
         on_event: Callable[[str, dict], None] | None = None,
         skills: SkillManager | None = None,
         var_resolvers: dict[str, Callable[[], str]] | None = None,
+        max_messages: int = 50,
+        auto_compress: bool = True,
     ) -> None:
         """
         Args:
@@ -99,6 +101,12 @@ class Agent:
         self.skill_manager = skills or SkillManager()
         #: 最近一轮对话的累计 token 消耗（run() 结束后更新）。
         self.last_usage = TokenUsage()
+        #: 最大消息数阈值，超过此数量将触发上下文压缩。
+        self.max_messages = max_messages
+        #: 是否自动压缩上下文。
+        self.auto_compress = auto_compress
+        #: 上下文压缩次数计数。
+        self._compression_count = 0
         # 系统提示词变量解析器：内置默认 + 用户自定义。
         self._var_resolvers: dict[str, Callable[[], str]] = _default_var_resolvers()
         if var_resolvers:
@@ -168,6 +176,97 @@ class Agent:
         """运行时移除一个技能，返回是否成功。"""
         return self.skill_manager.unregister(name)
 
+    def _estimate_tokens(self, messages: list[Message]) -> int:
+        """估算消息列表的 token 数量（粗略估算）。
+
+        1 中文字 ≈ 1.5 token，1 英文词 ≈ 1.3 token。
+        """
+        total = 0
+        for msg in messages:
+            text = msg.content or ""
+            # 粗略估算：中文字符数 * 1.5 + 英文单词数 * 1.3
+            chinese_chars = sum(1 for c in text if '\u4e00' <= c <= '\u9fff')
+            english_words = len(re.findall(r'[a-zA-Z]+', text))
+            total += int(chinese_chars * 1.5 + english_words * 1.3)
+        return total
+
+    def _compress_context(self, messages: list[Message]) -> list[Message]:
+        """压缩上下文：总结旧消息为摘要，保留最近消息。
+
+        Args:
+            messages: 当前消息列表（应已包含 system prompt 和用户最新消息）。
+
+        Returns:
+            压缩后的新消息列表。
+        """
+        # 如果禁用自动压缩，直接返回原消息
+        if not self.auto_compress:
+            return messages
+
+        if len(messages) <= self.max_messages:
+            return messages
+
+        # 保留 system prompt 和最近一半的消息
+        system_msg = messages[0] if messages[0].role == "system" else None
+        recent_count = self.max_messages // 2
+        recent_messages = messages[-recent_count:]
+
+        # 需要压缩的旧消息（不包括 system 和最近消息）
+        if system_msg:
+            old_messages = messages[1 : len(messages) - len(recent_messages)]
+        else:
+            old_messages = messages[: len(messages) - len(recent_messages)]
+
+        if not old_messages:
+            return messages
+
+        # 调用 LLM 生成摘要
+        summary_prompt = Message.system(
+            "请总结以下对话历史的关键信息，包括：\n"
+            "1. 用户的主要需求和意图\n"
+            "2. 已完成的任务和重要结果\n"
+            "3. 正在进行中的任务状态\n"
+            "4. 重要的上下文信息\n"
+            "总结要简洁（不超过 200 字），但保留所有关键信息。"
+        )
+
+        # 只取前 20 条旧消息避免过长
+        summary_messages = [summary_prompt] + old_messages[:20]
+
+        try:
+            # 调用 LLM 生成摘要（不携带工具，避免复杂化）
+            resp = self.llm.complete(summary_messages, tools=None)
+            summary_text = resp.content or "历史对话摘要生成失败。"
+        except Exception:  # noqa: BLE001 - 摘要生成失败不影响对话
+            summary_text = "历史对话因过长已被截断，部分信息可能丢失。"
+
+        # 创建摘要消息
+        self._compression_count += 1
+        summary_msg = Message.system(
+            f"[上下文压缩摘要 - 第 {self._compression_count} 次压缩]\n{summary_text}"
+        )
+
+        # 通知压缩事件
+        if self.on_event:
+            self.on_event(
+                "context_compressed",
+                {
+                    "old_messages": len(old_messages),
+                    "new_messages": len(recent_messages) + 2,  # +2: system + summary
+                    "compression_count": self._compression_count,
+                    "summary": summary_text[:100],
+                },
+            )
+
+        # 重组消息：system + 摘要 + 最近消息
+        compressed: list[Message] = []
+        if system_msg:
+            compressed.append(system_msg)
+        compressed.append(summary_msg)
+        compressed.extend(recent_messages)
+
+        return compressed
+
     def _register_use_skill(self) -> None:
         """注册 use_skill 工具（延迟导入避免循环依赖）。"""
         from personal_assistant.skills import UseSkillTool
@@ -195,6 +294,10 @@ class Agent:
         if messages and messages[0].role == "system":
             processed = self._process_system_prompt(messages[0].content or "")
             messages[0] = Message.system(processed)
+
+        # 检查是否需要压缩上下文（自动触发）
+        if self.auto_compress and len(messages) > self.max_messages:
+            messages = self._compress_context(messages)
 
         tool_specs = [t.to_spec() for t in self.tools.values()]
         total_usage = TokenUsage()

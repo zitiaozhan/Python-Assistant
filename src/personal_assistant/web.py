@@ -94,6 +94,8 @@ def _build_agent() -> None:
         confirm=_web_confirm,
         on_event=_web_on_event,
         skills=app_state.skill_manager,
+        max_messages=50,  # 上下文压缩：最大消息数
+        auto_compress=True,  # 启用自动上下文压缩
     )
 
 
@@ -693,6 +695,11 @@ async def _handle_chat(user_text: str) -> None:
         if event == "tool_call":
             asyncio.run_coroutine_threadsafe(
                 _broadcast({"type": "tool_call", "data": data}, log=True), loop
+            )
+        elif event == "context_compressed":
+            # 广播上下文压缩事件
+            asyncio.run_coroutine_threadsafe(
+                _broadcast({"type": "context_compressed", "data": data}, log=True), loop
             )
 
     agent = app_state.agent
