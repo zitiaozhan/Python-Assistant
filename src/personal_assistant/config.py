@@ -42,11 +42,6 @@ class ModelConfig:
         env_key = os.environ.get("DEEPSEEK_API_KEY")
         if env_key:
             self.api_key = env_key
-        if not self.api_key or self.api_key.startswith("sk-your-"):
-            raise ConfigError(
-                "未找到有效的 API key。请在 config/model.json 填入 api_key，"
-                "或设置环境变量 DEEPSEEK_API_KEY。"
-            )
 
 
 class ConfigError(RuntimeError):

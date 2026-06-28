@@ -11,11 +11,14 @@ keywords = ["assistant", "agent", "phone-pc", "automation", "plugins"]
 dependencies = [
     "openai>=2.43.0",
     "ddgs>=9.0.0",
+    "fastapi>=0.115.0",
+    "uvicorn>=0.32.0",
 ]
 
 [project.scripts]
 # 安装后提供 `personal-assistant` 命令入口（当前为占位）。
 personal-assistant = "personal_assistant.__main__:main"
+personal-assistant-web = "personal_assistant.web:main"
 
 [project.urls]
 Documentation = "https://github.com/your-org/Python-Assistant#readme"

@@ -119,7 +119,8 @@ class BashTool(Tool):
         if out:
             parts.append(out.rstrip("\n"))
         if err:
-            parts.append(f"[stderr]\n{err.rstrip('\n')}")
+            err_stripped = err.rstrip("\n")
+            parts.append(f"[stderr]\n{err_stripped}")
         return "\n".join(parts)
 
     @staticmethod
