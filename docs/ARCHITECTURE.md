@@ -1,7 +1,7 @@
 # Architecture
 
-> Status: **Agent + 工具调用 + 技能系统 + Token 统计 + Web UI + Markdown 渲染 + 手机扫码访问已可用**。
-> Agent 通过与模型解耦的 toolcall 协议自主调用工具（bash）和技能（文件夹式 SKILL.md），并在每轮对话后报告 Token 消耗。Web 层采用广播 WebSocket 架构，PC 与手机共享同一对话会话，消息实时双向同步。
+> Status: **Agent + 工具调用 + 技能系统 + Token 统计 + Web UI + Markdown 渲染（含表格） + 手机扫码访问 + 上下文压缩已可用**。
+> Agent 通过与模型解耦的 toolcall 协议自主调用工具（bash）和技能（文件夹式 SKILL.md），并在每轮对话后报告 Token 消耗。Web 层采用广播 WebSocket 架构，PC 与手机共享同一对话会话，消息实时双向同步。支持长期任务运行，上下文过长时自动压缩历史对话。
 
 ## Goals
 
@@ -48,6 +48,9 @@ The coordinator. Drives the toolcall loop:
 - Accumulates `TokenUsage` across all model calls in a single turn
 - Resolves `{{variable}}` placeholders in system prompts and appends values
   (preserving the original prompt for prompt cache hits)
+- **Context compression**: automatically summarizes old messages when exceeding
+  `max_messages` threshold (default 50), preserving system prompt + summary +
+  recent messages. Also provides `compress_context` tool for AI-initiated compression.
 
 ### Tool (`core/tool.py`)
 
@@ -233,11 +236,20 @@ substitution before HTML escaping to prevent corruption:
 ```
 Input text
   → Extract code blocks/inline code → replace with \x00CODE0\x00 placeholders
+  → Extract tables → replace with \x00TABLE0\x00 placeholders
   → HTML-escape remaining text
   → Process line-by-line: headings, blockquotes, lists, paragraphs
   → Restore code blocks with <pre><code>
+  → Restore tables with <table> (supports alignment, hover highlight)
   → Attach copy buttons to <pre> elements
 ```
+
+**Table support** (`parseTable()`):
+- Parses standard Markdown tables with header, separator, and data rows
+- Supports alignment (`:---` left, `:---:` center, `---:` right)
+- Cells support inline Markdown (bold, italic, strikethrough, links)
+- Renders with responsive wrapper for horizontal scrolling
+- Styled for both desktop (chat.css) and mobile (mobile.html)
 
 ---
 
@@ -360,8 +372,10 @@ See [`src/personal_assistant/skills/README.md`](../src/personal_assistant/skills
 13. ✅ **Broadcast WebSocket architecture**: shared history, event-log replay, `_active_connections`.
 14. ✅ **Mobile QR access**: `/api/qrcode.svg`, `/api/server-info`, `/mobile`, touch-optimized page.
 15. ✅ **Websearch dual-engine**: Bing + Sogou, auto language detection, junk filter, news/time params.
-16. ⬜ More built-in tools (file I/O, clipboard, system notifications).
-17. ⬜ Skill/tool auto-discovery (entry points / directory scanning).
-18. ⬜ Cross-device dangerous-command confirmation (mobile can approve/reject).
-19. ⬜ Phone–PC transport and pairing (sync/ subpackage).
-20. ⬜ Multi-step task planning on top of tool calling.
+16. ✅ **Markdown table rendering**: alignment support, hover highlight, responsive wrapper, chat + editor.
+17. ✅ **Context compression**: AI-summarized history + auto-trigger + AI-initiated, enables long-running tasks.
+18. ⬜ More built-in tools (file I/O, clipboard, system notifications).
+19. ⬜ Skill/tool auto-discovery (entry points / directory scanning).
+20. ⬜ Cross-device dangerous-command confirmation (mobile can approve/reject).
+21. ⬜ Phone–PC transport and pairing (sync/ subpackage).
+22. ⬜ Multi-step task planning on top of tool calling.
