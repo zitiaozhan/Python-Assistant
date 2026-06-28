@@ -28,9 +28,11 @@ python "<技能文件夹>/bilibili_downloader.py" "视频链接" [选项]
 |------|------|
 | `--quality Q` | 清晰度：360p, 480p, 720p, 1080p, 4k, best（默认 best） |
 | `--output-dir DIR` | 保存目录，默认 `./downloads` |
-| `--danmaku` | 同时下载弹幕（字幕格式） |
+| `--danmaku` | 同时下载弹幕（SRT 字幕格式） |
 | `--list-formats` / `-F` | 仅列出可用格式，不下载 |
 | `--cookies FILE` | Cookie 文件路径（用于下载高清/大会员视频） |
+| `--cookies-from-browser BROWSER` | 从浏览器提取 Cookie（chrome/firefox/edge） |
+| `--referer URL` | Referer 请求头，默认 `https://www.bilibili.com/`（避免 HTTP 412 错误） |
 
 ## 示例
 
@@ -44,8 +46,44 @@ python "D:/Code/AI/Python-Assistant/src/personal_assistant/skills/bilibili_downl
 # 下载 1080p + 弹幕，保存到桌面
 python "D:/Code/AI/Python-Assistant/src/personal_assistant/skills/bilibili_downloader/bilibili_downloader.py" "https://www.bilibili.com/video/BV1xx411c7mD" --quality 1080p --danmaku --output-dir ~/Desktop/bilibili_videos
 
-# 使用 Cookie 下载大会员视频
-python "D:/Code/AI/Python-Assistant/src/personal_assistant/skills/bilibili_downloader/bilibili_downloader.py" "https://www.bilibili.com/video/BV1xx411c7mD" --cookies ~/cookies.txt
+# 使用浏览器 Cookie 下载大会员视频
+python "D:/Code/AI/Python-Assistant/src/personal_assistant/skills/bilibili_downloader/bilibili_downloader.py" "https://www.bilibili.com/video/BV1xx411c7mD" --cookies-from-browser chrome
+```
+
+## 常见问题
+
+### HTTP Error 412: Precondition Failed
+
+**原因**：B站现已强制要求登录 Cookie，未携带 Cookie 的请求会被拒绝。
+
+**解决方案（二选一）**：
+
+#### 方法 1：从浏览器提取 Cookie（推荐，最简单）
+
+确保你的浏览器（Chrome/Firefox/Edge）已登录 B 站账号，然后：
+
+```bash
+# 从 Chrome 提取
+python ".../bilibili_downloader.py" "视频链接" --cookies-from-browser chrome
+
+# 从 Firefox 提取
+python ".../bilibili_downloader.py" "视频链接" --cookies-from-browser firefox
+
+# 从 Edge 提取
+python ".../bilibili_downloader.py" "视频链接" --cookies-from-browser edge
+```
+
+支持的浏览器：chrome, firefox, edge, opera, brave, vivaldi, safari
+
+#### 方法 2：导出 Cookie 文件
+
+1. 在浏览器中安装扩展：**Get cookies.txt LOCALLY**
+2. 打开 B 站并登录
+3. 点击扩展图标，导出 `cookies.txt` 文件
+4. 使用 Cookie 文件下载：
+
+```bash
+python ".../bilibili_downloader.py" "视频链接" --cookies cookies.txt
 ```
 
 ## 前置依赖

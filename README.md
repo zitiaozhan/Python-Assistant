@@ -281,7 +281,7 @@ python3 ".../search.py" "AI 大模型" --type news --time w
 
 ### 自动压缩
 
-- **触发条件**：消息数量超过 `max_messages`（默认 50 条）
+- **触发条件**：消息数量超过 `max_messages`（默认 500 条）
 - **压缩策略**：
   1. 调用 LLM 生成历史对话摘要（包含用户需求、已完成任务、进行中状态）
   2. 保留 system prompt + 压缩摘要 + 最近一半消息（默认 25 条）
@@ -314,7 +314,7 @@ Agent 还可以调用 `compress_context` 工具主动触发压缩：
 
 ```python
 Agent(
-    max_messages=50,      # 最大消息数阈值
+    max_messages=500,      # 最大消息数阈值
     auto_compress=True,   # 启用自动压缩
 )
 ```

@@ -68,12 +68,12 @@ class Agent:
         tools: list[Tool] | None = None,
         *,
         system_prompt: str = "",
-        max_iterations: int = 10,
+        max_iterations: int = 200,
         confirm: Callable[[str, dict, str], bool] | None = None,
         on_event: Callable[[str, dict], None] | None = None,
         skills: SkillManager | None = None,
         var_resolvers: dict[str, Callable[[], str]] | None = None,
-        max_messages: int = 50,
+        max_messages: int = 500,
         auto_compress: bool = True,
     ) -> None:
         """

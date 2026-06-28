@@ -48,11 +48,8 @@ function renderMarkdown(text) {
 
     // ── 步骤 2.5：提取表格（替换为占位符）────────────────────────────────
     const tables = [];
-    text = text.replace(/((?:^|
-)(?:\|.+)
-(?:\|[-\s:|]+)
-(?:\|.+(?:
-|$))+)/g, (match) => {
+    const tableRegex = new RegExp('((?:^|\\n)(?:\\|.+)\\n(?:\\|[-\\s:|]+)\\n(?:\\|.+(?:\\n|$))+)', 'g');
+    text = text.replace(tableRegex, (match) => {
         const idx = tables.length;
         tables.push(match);
         return `\x00TABLE${idx}\x00`;
