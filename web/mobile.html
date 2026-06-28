@@ -258,6 +258,42 @@ html, body {
 }
 .ai .bubble hr { border: none; border-top: 1px solid var(--border); margin: 10px 0; }
 
+/* ─── Table styles ──────────────────────────────── */
+.ai .bubble .table-wrapper {
+    margin: 10px 0;
+    overflow-x: auto;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+}
+.ai .bubble table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+    background: var(--bg-card);
+}
+.ai .bubble thead {
+    background: rgba(196, 120, 90, 0.08);
+}
+.ai .bubble th {
+    padding: 10px 12px;
+    font-weight: 600;
+    text-align: left;
+    border-bottom: 2px solid var(--border);
+    color: var(--text);
+    white-space: nowrap;
+}
+.ai .bubble td {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+}
+.ai .bubble tbody tr:hover {
+    background: rgba(196, 120, 90, 0.04);
+}
+.ai .bubble tbody tr:last-child td {
+    border-bottom: none;
+}
+
 /* Streaming cursor */
 .streaming-cursor {
     display: inline-block;

@@ -46,6 +46,18 @@ function renderMarkdown(text) {
         .replace(/>/g, '&gt;')
         .replace(/"/g, '&quot;');
 
+    // ── 步骤 2.5：提取表格（替换为占位符）────────────────────────────────
+    const tables = [];
+    text = text.replace(/((?:^|
+)(?:\|.+)
+(?:\|[-\s:|]+)
+(?:\|.+(?:
+|$))+)/g, (match) => {
+        const idx = tables.length;
+        tables.push(match);
+        return `\x00TABLE${idx}\x00`;
+    });
+
     // ── 步骤 3：行级规则（逐行处理）─────────────────────────────────────
     const lines = text.split('\n');
     const out = [];
@@ -130,6 +142,11 @@ function renderMarkdown(text) {
         return `<pre><code class="language-${escapeHtml(lang)}">${escapeHtml(code)}</code></pre>`;
     });
 
+    // ── 步骤 6：还原表格 ──────────────────────────────────────────────────
+    html = html.replace(/\x00TABLE(\d+)\x00/g, (_, i) => {
+        return parseTable(tables[+i]);
+    });
+
     return html;
 }
 
@@ -148,4 +165,69 @@ function _inline(text) {
     // 链接
     text = text.replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>');
     return text;
+}
+
+/** 解析 Markdown 表格为 HTML */
+function parseTable(tableText) {
+    if (!tableText) return '';
+
+    const lines = tableText.trim().split('\n').filter(line => line.trim());
+    if (lines.length < 2) return ''; // 至少需要表头 + 分隔线
+
+    // 解析表头
+    const headers = parseTableRow(lines[0]);
+    // 解析对齐方式（从分隔线）
+    const aligns = parseTableAlign(lines[1]);
+    // 解析数据行
+    const rows = [];
+    for (let i = 2; i < lines.length; i++) {
+        rows.push(parseTableRow(lines[i]));
+    }
+
+    // 生成 HTML
+    let html = '<div class="table-wrapper"><table>';
+
+    // 表头
+    html += '<thead><tr>';
+    headers.forEach((header, i) => {
+        const align = aligns[i] ? ` style="text-align:${aligns[i]}"` : '';
+        html += `<th${align}>${_inline(header.trim())}</th>`;
+    });
+    html += '</tr></thead>';
+
+    // 表体
+    html += '<tbody>';
+    rows.forEach(row => {
+        html += '<tr>';
+        row.forEach((cell, i) => {
+            const align = aligns[i] ? ` style="text-align:${aligns[i]}"` : '';
+            html += `<td${align}>${_inline(cell.trim())}</td>`;
+        });
+        html += '</tr>';
+    });
+    html += '</tbody>';
+
+    html += '</table></div>';
+    return html;
+}
+
+/** 解析表格行（按 | 分割） */
+function parseTableRow(line) {
+    // 去掉首尾的 |，然后按 | 分割
+    line = line.trim();
+    if (line.startsWith('|')) line = line.substring(1);
+    if (line.endsWith('|')) line = line.substring(0, line.length - 1);
+    return line.split('|');
+}
+
+/** 解析表格对齐方式 */
+function parseTableAlign(line) {
+    const cells = parseTableRow(line);
+    return cells.map(cell => {
+        cell = cell.trim();
+        if (cell.startsWith(':') && cell.endsWith(':')) return 'center';
+        if (cell.endsWith(':')) return 'right';
+        if (cell.startsWith(':')) return 'left';
+        return 'left'; // 默认左对齐
+    });
 }

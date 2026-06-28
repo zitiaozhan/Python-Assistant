@@ -335,19 +335,39 @@
     width: 100%;
     border-collapse: collapse;
     margin: 12px 0;
-    font-size: 0.85rem;
+    font-size: 0.88rem;
+    background: var(--bg-primary);
+    border-radius: var(--radius-xs);
+    overflow: hidden;
 }
 
-.editor-right th, .editor-right td {
-    border: 1px solid var(--border);
-    padding: 8px 12px;
-    text-align: left;
+.editor-right thead {
+    background: var(--accent-glow);
 }
 
 .editor-right th {
-    background: var(--bg-sidebar);
+    border-bottom: 2px solid var(--border);
+    padding: 10px 12px;
+    text-align: left;
     font-weight: 600;
     color: var(--text-primary);
+    white-space: nowrap;
+}
+
+.editor-right td {
+    border-bottom: 1px solid var(--border);
+    padding: 8px 12px;
+    color: var(--text-primary);
+    line-height: 1.6;
+}
+
+.editor-right tbody tr:hover {
+    background: var(--accent-glow);
+    transition: background 0.2s ease;
+}
+
+.editor-right tbody tr:last-child td {
+    border-bottom: none;
 }
 
 .editor-right hr {
