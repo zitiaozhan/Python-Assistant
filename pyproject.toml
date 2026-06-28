@@ -7,12 +7,14 @@ requires-python = ">=3.12"
 license = { text = "MIT" }
 authors = [{ name = "Python-Assistant" }]
 keywords = ["assistant", "agent", "phone-pc", "automation", "plugins"]
-# 运行时依赖暂留空：当前仅初始化骨架，不实现具体功能。
+# 运行时依赖：LLM、搜索、Web 服务、二维码生成
 dependencies = [
     "openai>=2.43.0",
     "ddgs>=9.0.0",
     "fastapi>=0.115.0",
     "uvicorn>=0.32.0",
+    "websockets>=16.0",
+    "qrcode>=8.2",
 ]
 
 [project.scripts]

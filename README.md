@@ -97,6 +97,7 @@ Python-Assistant/
 ├── tests/                     # 单元测试 + Agent 编排测试 + 真实 LLM 验收测试
 ├── docs/
 │   └── ARCHITECTURE.md        # 架构与扩展机制说明
+├── requirements.md            # 依赖清单（运行时 + 开发 + 传递依赖）
 ├── pyproject.toml             # 项目元信息、依赖、工具配置
 └── README.md
 ```
@@ -109,7 +110,7 @@ Python-Assistant/
 | 依赖/环境    | [uv](https://github.com/astral-sh/uv) |
 | Web 框架     | FastAPI + Uvicorn             |
 | 前端         | 原生 JS + CSS（无构建工具，模块化文件）|
-| 搜索引擎     | Bing (cn.bing.com) + Sogou 双引擎（标准库实现）|
+| 搜索引擎     | DuckDuckGo（ddgs 库）|
 | QR 码生成    | Python `qrcode` 库（SVG 输出）|
 | 测试         | pytest                        |
 | Lint/Format  | ruff（uv 自带）               |
@@ -121,17 +122,23 @@ Python-Assistant/
 
 - Python ≥ 3.12
 - 推荐安装 [uv](https://docs.astral.sh/uv/getting-started/installation/)（可选，也支持 pip + venv）
+- 依赖清单：请查看 [requirements.md](requirements.md)，启动项目前需确保所有依赖已安装
+
+### 安装依赖
+
+> ⚠️ **重要**：首次运行或拉取新代码后，请先安装依赖，否则可能出现 `ModuleNotFoundError`。
+
+完整依赖清单及说明见 [requirements.md](requirements.md)。
 
 ### 初始化环境
 
 ```bash
-# 方式 A：使用 uv（推荐）
+# 方式 A：使用 uv（推荐，自动使用清华镜像源）
 uv sync
 
 # 方式 B：使用 pip + venv
 python3.12 -m venv .venv
 .venv/bin/pip install -e ".[dev]"
-.venv/bin/pip install "uvicorn[standard]" qrcode  # Web 服务额外依赖
 ```
 
 ### 配置模型

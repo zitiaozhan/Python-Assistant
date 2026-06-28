@@ -817,7 +817,14 @@ def main() -> None:
     print(f"   本机访问: http://127.0.0.1:{port}")
     print(f"   局域网访问: http://{local_ip}:{port}")
     print(f"   手机扫码: http://{local_ip}:{port}/mobile\n")
-    uvicorn.run("personal_assistant.web:app", host=host, port=port, reload=True)
+    uvicorn.run(
+        "personal_assistant.web:app",
+        host=host,
+        port=port,
+        reload=True,
+        ws_ping_interval=30,   # 每 30 秒发送 ping（默认 20 秒，Windows 本地容易超时）
+        ws_ping_timeout=60,    # ping 超时 60 秒才断开（默认 60 秒）
+    )
 
 
 if __name__ == "__main__":
